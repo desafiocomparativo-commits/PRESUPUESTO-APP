@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presupuesto Pro V10</title>
+    <style>
+        /* ESTILO V6 ORIGINAL */
+        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; margin: 0; padding: 10px; }
+        .header-app { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .menu-btn { background: none; border: none; color: #bb86fc; font-size: 28px; cursor: pointer; }
+        h2 { color: #bb86fc; margin: 0; flex: 1; text-align: center; font-weight: normal; }
+        
+        .name-box { text-align: center; margin-bottom: 15px; }
+        .name-input { background: #1e1e1e; border: 1px solid #333; color: #03dac6; padding: 8px; border-radius: 5px; width: 60%; text-align: center; font-weight: bold; }
+
+        .top-section { display: flex; justify-content: space-around; background: #1e1e1e; padding: 15px 5px; border-radius: 10px; margin-bottom: 20px; }
+        .top-item { display: flex; flex-direction: column; align-items: center; }
+        label { color: #aaa; font-size: 11px; margin-bottom: 5px; }
+        input { background: #2c2c2c; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 5px; text-align: center; width: 90px; }
+        .readonly { background: #1a1a1a; color: #03dac6; font-weight: bold; border: 1px dashed #333; }
+
+        /* TABLA V6 */
+        .list-header { display: grid; grid-template-columns: 25px 1fr 70px 76px 76px; gap: 4px; color: #bb86fc; font-size: 11px; text-align: center; margin-bottom: 8px; }
+        .row-item { display: grid; grid-template-columns: 25px 1fr 70px 76px 76px; gap: 4px; margin-bottom: 8px; }
+        .row-num { color: #666; text-align: center; font-size: 12px; padding-top: 8px; }
+        .prod-input { text-align: left; padding-left: 8px; width: 100%; box-sizing: border-box; }
+
+        .footer { margin-top: 20px; background: #1e1e1e; padding: 15px; border-radius: 10px; border-left: 4px solid #cf6679; }
+
+        /* MENU */
+        .sidenav { height: 100%; width: 0; position: fixed; z-index: 100; top: 0; left: 0; background-color: #000; overflow-x: hidden; transition: 0.3s; padding-top: 60px; border-right: 1px solid #333; }
+        .sidenav button { padding: 15px 20px; color: #ccc; display: block; width: 100%; background: none; border: none; text-align: left; cursor: pointer; border-bottom: 1px solid #222; font-size: 16px; }
+        .sidenav .closebtn { position: absolute; top: 10px; right: 20px; font-size: 30px; color: #fff; }
+        .save-label { color: #666; font-size: 12px; padding: 20px 20px 5px; text-transform: uppercase; }
+        .saved-entry { color: #03dac6 !important; }
+    </style>
+</head>
+<body>
+
+    <div id="mySidenav" class="sidenav">
+        <button class="closebtn" onclick="closeNav()">&times;</button>
+        <button onclick="nuevo()">+ Nuevo</button>
+        <button onclick="guardar()">💾 Guardar</button>
+        <div class="save-label">Guardados</div>
+        <div id="lista-guardados"></div>
+    </div>
+
+    <div class="header-app">
+        <button class="menu-btn" onclick="openNav()">☰</button>
+        <h2>Presupuesto Pro</h2>
+    </div>
+
+    <div class="name-box">
+        <input type="text" id="p-nombre" class="name-input" maxlength="12" placeholder="NOMBRE">
+    </div>
+
+    <div class="top-section">
+        <div class="top-item"><label>INGRESO</label><input type="number" id="ing" oninput="calcGlobal()"></div>
+        <div class="top-item"><label>TASA</label><input type="number" id="tas" oninput="calcGlobal()"></div>
+        <div class="top-item"><label>CONVER.</label><input type="text" id="con" class="readonly" readonly></div>
+    </div>
+
+    <div class="list-header"><div>#</div><div>Producto</div><div>Cant</div><div>Monto</div><div>Ref($)</div></div>
+    <div id="items-root"></div>
+
+    <div class="footer">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><label>RESTO LOCAL</label><input type="text" id="r-loc" class="readonly" style="color:#cf6679; width:100%" readonly></div>
+            <div><label>RESTO REF</label><input type="text" id="r-ref" class="readonly" style="color:#cf6679; width:100%" readonly></div>
+        </div>
+    </div>
+
+    <script>
+        // GENERAR FILAS
+        const root = document.getElementById('items-root');
+        for(let i=1; i<=30; i++) {
+            root.innerHTML += `
+                <div class="row-item" id="f-${i}">
+                    <div class="row-num">${i}</div>
+                    <input type="text" class="prod-input" maxlength="20" placeholder="...">
+                    <input type="number" class="c-in" placeholder="1" oninput="calcFila(${i},'c')">
+                    <input type="number" class="m-in" placeholder="0" oninput="calcFila(${i},'m')">
+                    <input type="number" class="r-in" placeholder="0" oninput="calcFila(${i},'r')">
+                </div>`;
+        }
+
+        function openNav() { document.getElementById("mySidenav").style.width = "250px"; mostrarG(); }
+        function closeNav() { document.getElementById("mySidenav").style.width = "0"; }
+
+        function calcGlobal() {
+            let i = parseFloat(document.getElementById('ing').value) || 0;
+            let t = parseFloat(document.getElementById('tas').value) || 0;
+            document.getElementById('con').value = t > 0 ? (i/t).toFixed(2) : "0.00";
+            actualizarResto();
+        }
+
+        function calcFila(idx, ori) {
+            let f = document.getElementById('f-'+idx);
+            let t = parseFloat(document.getElementById('tas').value) || 0;
+            if(t <= 0) return;
+
+            let c = parseFloat(f.querySelector('.c-in').value) || 1;
+            let mIn = f.querySelector('.m-in');
+            let rIn = f.querySelector('.r-in');
+
+            if(ori === 'm') {
+                rIn.value = (parseFloat(mIn.value) / t).toFixed(2);
+            } else if(ori === 'r') {
+                mIn.value = (parseFloat(rIn.value) * t * c).toFixed(2);
+            } else {
+                let rV = parseFloat(rIn.value) || 0;
+                if(rV > 0) mIn.value = (rV * t * c).toFixed(2);
+            }
+            actualizarResto();
+        }
+
+        function actualizarResto() {
+            let i = parseFloat(document.getElementById('ing').value) || 0;
+            let t = parseFloat(document.getElementById('tas').value) || 0;
+            let g = 0;
+            document.querySelectorAll('.m-in').forEach(x => g += (parseFloat(x.value) || 0));
+            let rl = i - g;
+            document.getElementById('r-loc').value = rl.toFixed(2);
+            document.getElementById('r-ref').value = t > 0 ? (rl/t).toFixed(2) : "0.00";
+        }
+
+        function guardar() {
+            let n = document.getElementById('p-nombre').value;
+            if(!n) return alert("Pon nombre");
+            let d = { ing: document.getElementById('ing').value, tas: document.getElementById('tas').value, rows: [] };
+            for(let i=1; i<=30; i++) {
+                let f = document.getElementById('f-'+i);
+                d.rows.push({ p: f.querySelector('.prod-input').value, c: f.querySelector('.c-in').value, m: f.querySelector('.m-in').value, r: f.querySelector('.r-in').value });
+            }
+            let db = JSON.parse(localStorage.getItem('dbP') || '{}');
+            db[n] = d;
+            localStorage.setItem('dbP', JSON.stringify(db));
+            alert("Guardado");
+            closeNav();
+        }
+
+        function mostrarG() {
+            let l = document.getElementById('lista-guardados'); l.innerHTML = "";
+            let db = JSON.parse(localStorage.getItem('dbP') || '{}');
+            Object.keys(db).forEach(k => {
+                let b = document.createElement('button'); b.className = "saved-entry"; b.innerText = "📂 "+k;
+                b.onclick = () => {
+                    let d = db[k];
+                    document.getElementById('p-nombre').value = k;
+                    document.getElementById('ing').value = d.ing;
+                    document.getElementById('tas').value = d.tas;
+                    d.rows.forEach((r, idx) => {
+                        let f = document.getElementById('f-'+(idx+1));
+                        f.querySelector('.prod-input').value = r.p;
+                        f.querySelector('.c-in').value = r.c;
+                        f.querySelector('.m-in').value = r.m;
+                        f.querySelector('.r-in').value = r.r;
+                    });
+                    calcGlobal(); closeNav();
+                };
+                l.appendChild(b);
+            });
+        }
+        function nuevo() { location.reload(); }
+    </script>
+</body>
+</html>
